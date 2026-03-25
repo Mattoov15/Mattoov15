@@ -69,6 +69,28 @@ MAX_DRAWDOWN_PCT       = 0.10        # Arrêt si drawdown depuis pic > 10 %
 KELLY_FRACTION         = 0.5         # Fraction Kelly (0.5 = demi-Kelly, prudent)
 
 # ─────────────────────────────────────────────
+# LIMITES STRICTES POUR LE MODE LIVE
+# Remplacent automatiquement les params paper ci-dessus quand TRADING_MODE == "live"
+# Raisonnement :
+#   5 %  position  → une erreur en live coûte réellement, moitié moins qu'en paper
+#   1.5 % /jour    → force une pause et une révision humaine avant de continuer
+#   6 %  drawdown  → alarme précoce, bien avant de toucher du capital irrémédiable
+#   Kelly × 0.25   → quart de Kelly = standard institutionnel sur stratégie non prouvée live
+#   2 positions    → GLD/QQQ/DIA sont corrélés, limiter la sur-exposition simultanée
+#   3 % /semaine   → filet hebdomadaire : suspension auto jusqu'au lundi suivant
+#   25 % déployés  → 75 % du capital TOUJOURS en cash comme tampon de sécurité
+#   50 trades min  → le modèle ML a besoin d'au moins 50 trades pour être fiable
+# ─────────────────────────────────────────────
+LIVE_MAX_POSITION_PCT           = 0.05    # 5 % max du capital par trade
+LIVE_DAILY_LOSS_LIMIT_PCT       = 0.015   # 1.5 % de perte/jour → arrêt immédiat
+LIVE_MAX_DRAWDOWN_PCT           = 0.06    # 6 % de drawdown depuis le pic → arrêt
+LIVE_KELLY_FRACTION             = 0.25    # Quart de Kelly (vs 0.5 en paper)
+LIVE_MAX_SIMULTANEOUS_POSITIONS = 2       # Max 2 positions ouvertes en même temps
+LIVE_WEEKLY_LOSS_LIMIT_PCT      = 0.03    # 3 % de perte/semaine → pause jusqu'au lundi
+LIVE_MAX_DEPLOYED_CAPITAL_PCT   = 0.25    # Max 25 % du capital total en marché
+LIVE_MIN_PAPER_TRADES           = 50      # Trades paper min avant d'autoriser le live
+
+# ─────────────────────────────────────────────
 # MACHINE LEARNING SUPERVISÉ
 # ─────────────────────────────────────────────
 ML_RETRAIN_EVERY_N_TRADES = 20       # Ré-entraîner toutes les N trades
