@@ -59,6 +59,12 @@ void setup_routine()
     /* Start dual output (CHA1 high-side, CHA2 low-side) */
     spin.pwm.startDualOutput(PWMA);
 
+    /* Enable the power driver - activate the optocoupler to take
+     * the gate driver out of standby. Without this, no power output
+     * on the Ownverter board. Pin 19 = LEG1 driver enable. */
+    spin.gpio.configurePin(19, OUTPUT);
+    spin.gpio.setPin(19);
+
     /* Create and start the critical task at 10 kHz (100 µs period) */
     task.createCritical(loop_critical_task, 100);
     task.startCritical();
