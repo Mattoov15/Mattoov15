@@ -43,17 +43,20 @@ static const float32_t duty_cycle = 0.5;
 
 /**
  * This is the setup routine.
- * We configure PWM at 200 kHz on PWMA and start a critical task at 10 kHz
+ * We configure PWM at 20 kHz on PWMA with 200 ns dead time
+ * between CHA1 and CHA2, and start a critical task at 10 kHz
  * to maintain the duty cycle at 50%.
  */
 void setup_routine()
 {
-    /* Set frequency of PWM */
-    spin.pwm.initFixedFrequency(200000);
+    /* Set PWM frequency to 20 kHz */
+    spin.pwm.initFixedFrequency(20000);
     /* Timer initialization */
     spin.pwm.initUnit(PWMA);
+    /* Set 200 ns dead time between CHA1 and CHA2 */
+    spin.pwm.setDeadTime(PWMA, 200, 200);
 
-    /* Start PWM */
+    /* Start dual output (CHA1 high-side, CHA2 low-side) */
     spin.pwm.startDualOutput(PWMA);
 
     /* Create and start the critical task at 10 kHz (100 µs period) */
