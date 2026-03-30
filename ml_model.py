@@ -49,10 +49,12 @@ class SupervisedModel:
     def predict_confidence(self, features: Dict) -> float:
         """
         Retourne la probabilité (0.0→1.0) que le signal soit profitable.
-        Si le modèle n'est pas encore entraîné, retourne 0.5 (neutre).
+        Si le modèle n'est pas encore entraîné, retourne 1.0 pour laisser
+        passer tous les signaux techniques (le bot doit d'abord accumuler
+        des trades avant que le ML puisse filtrer).
         """
         if not self._trained or self.model is None:
-            return 0.5
+            return 1.0   # Pas encore entraîné → laisser passer tous les signaux
 
         try:
             X = self._dict_to_array(features)
