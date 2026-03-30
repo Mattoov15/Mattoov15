@@ -26,7 +26,9 @@ from typing import Dict, Optional
 import config
 from trade_logger import TradeLogger, setup_logger
 from data_manager import DataManager
-from strategy import TradingStrategy, Signal
+import numpy as np
+
+from strategy import TradingStrategy, Signal, SignalResult
 from risk_manager import RiskManager
 from ml_model import SupervisedModel
 from rl_agent import DQNAgent
@@ -282,7 +284,6 @@ class TradingBot:
         # Mise à jour du capital + décrémentation des positions suivies
         position_cost = float(trade.get("entry_price", 0)) * float(trade.get("quantity", 0))
         self.risk_manager.update_capital(pnl, position_cost)
-        self.risk_manager.decrement_positions(position_cost)
 
         # Apprentissage RL depuis l'erreur
         dd = self.risk_manager.status()["drawdown"]
@@ -341,8 +342,7 @@ class TradingBot:
             logger.warning(f"Impossible de récupérer le solde Alpaca ({e}) — capital par défaut : {config.INITIAL_CAPITAL} $")
             return config.INITIAL_CAPITAL
 
-    def _build_rl_state(self, df, in_position: int, signal_result) -> "np.ndarray":
-        import numpy as np
+    def _build_rl_state(self, df, in_position: int, signal_result) -> np.ndarray:
         closes = df["Close"].values
         ret_1h = float((closes[-1] - closes[-2]) / closes[-2]) if len(closes) >= 2 else 0.0
         ret_4h = float((closes[-1] - closes[-5]) / closes[-5]) if len(closes) >= 5 else 0.0
@@ -361,8 +361,7 @@ class TradingBot:
             capital_ratio=capital_ratio,
         )
 
-    def _dummy_state(self) -> "np.ndarray":
-        import numpy as np
+    def _dummy_state(self) -> np.ndarray:
         return np.zeros(10, dtype=np.float32)
 
     # ──────────────────────────────────────────
@@ -393,6 +392,7 @@ class TradingBot:
                 state = json.load(f)
             self.risk_manager.capital              = state.get("capital", config.INITIAL_CAPITAL)
             self.risk_manager.peak_capital         = state.get("peak_capital", config.INITIAL_CAPITAL)
+            self.risk_manager._initial_capital     = state.get("initial_capital", config.INITIAL_CAPITAL)
             self._trades_since_ml_retrain          = state.get("trades_since_ml_retrain", 0)
             self.rl_agent.steps                    = state.get("rl_steps", 0)
             self.rl_agent.epsilon                  = state.get("rl_epsilon", config.RL_EPSILON_START)
