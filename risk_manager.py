@@ -14,7 +14,7 @@ import config
 
 logger = logging.getLogger("trading_bot")
 
-_IS_LIVE = config.TRADING_MODE == "live"
+_IS_LIVE = config.TRADING_MODE == "live"   # Les limites strictes s'appliquent uniquement en "live"
 
 
 class RiskManager:

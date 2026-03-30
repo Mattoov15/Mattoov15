@@ -346,14 +346,20 @@ class LiveTrader:
 
 
 def create_trader(trade_logger: TradeLogger):
-    """Factory : retourne PaperTrader ou LiveTrader selon la config."""
-    if config.TRADING_MODE == "live":
-        logger.info("Mode LIVE activé — connexion à Alpaca...")
+    """
+    Factory : retourne le bon trader selon le mode configuré.
+      'paper'        → simulation locale, aucun ordre Alpaca
+      'alpaca-paper' → ordres sur compte PAPER Alpaca (visible sur app.alpaca.markets)
+      'live'         → ordres sur compte LIVE Alpaca (argent réel)
+    """
+    if config.TRADING_MODE in ("live", "alpaca-paper"):
+        label = "LIVE" if config.TRADING_MODE == "live" else "ALPACA PAPER"
+        logger.info(f"Mode {label} activé — connexion à Alpaca ({config.ALPACA_BASE_URL})...")
         trader = LiveTrader(trade_logger)
         if not trader.is_connected():
-            logger.warning("Fallback vers Paper Trading (connexion Alpaca échouée).")
+            logger.warning("Connexion Alpaca échouée — fallback vers simulation locale.")
             return PaperTrader(trade_logger)
         return trader
     else:
-        logger.info("Mode PAPER TRADING activé.")
+        logger.info("Mode SIMULATION LOCALE activé (aucun ordre envoyé à Alpaca).")
         return PaperTrader(trade_logger)

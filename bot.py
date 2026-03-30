@@ -409,9 +409,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Bot de trading autonome avec apprentissage")
     parser.add_argument(
         "--mode",
-        choices=["paper", "live", "backtest"],
+        choices=["paper", "alpaca-paper", "live", "backtest"],
         default=config.TRADING_MODE,
-        help="Mode d'exécution (défaut : paper)",
+        help="Mode d'exécution (défaut : alpaca-paper)",
     )
     parser.add_argument(
         "--days",

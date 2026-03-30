@@ -9,9 +9,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─────────────────────────────────────────────
-# MODE : "paper" ou "live"
+# MODE DE TRADING
+#   "paper"        → simulation locale (aucune connexion Alpaca)
+#   "alpaca-paper" → ordres réels sur compte PAPER Alpaca (recommandé pour tester)
+#   "live"         → ordres réels sur compte LIVE Alpaca (argent réel)
 # ─────────────────────────────────────────────
-TRADING_MODE = os.getenv("TRADING_MODE", "paper")   # "paper" | "live"
+TRADING_MODE = os.getenv("TRADING_MODE", "alpaca-paper")   # "paper" | "alpaca-paper" | "live"
 
 # ─────────────────────────────────────────────
 # ALPACA (paper & live trading)
@@ -19,9 +22,9 @@ TRADING_MODE = os.getenv("TRADING_MODE", "paper")   # "paper" | "live"
 ALPACA_API_KEY    = os.getenv("ALPACA_API_KEY", "")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
 ALPACA_BASE_URL   = (
-    "https://paper-api.alpaca.markets"
-    if TRADING_MODE == "paper"
-    else "https://api.alpaca.markets"
+    "https://api.alpaca.markets"
+    if TRADING_MODE == "live"
+    else "https://paper-api.alpaca.markets"   # paper et alpaca-paper utilisent le même endpoint
 )
 
 # ─────────────────────────────────────────────
