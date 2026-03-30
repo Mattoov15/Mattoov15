@@ -20,7 +20,7 @@ import time
 import signal
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 import config
@@ -131,7 +131,7 @@ class TradingBot:
 
     def _tick(self):
         """Une itération de la boucle principale."""
-        logger.debug(f"--- Tick {datetime.utcnow().isoformat()} ---")
+        logger.debug(f"--- Tick {datetime.now(timezone.utc).isoformat()} ---")
 
         if not self.risk_manager.can_trade():
             logger.warning("Trading suspendu par le risk manager.")
@@ -328,7 +328,7 @@ class TradingBot:
             "trades_since_ml_retrain":     self._trades_since_ml_retrain,
             "rl_steps":                    self.rl_agent.steps,
             "rl_epsilon":                  self.rl_agent.epsilon,
-            "last_save":                   datetime.utcnow().isoformat(),
+            "last_save":                   datetime.now(timezone.utc).isoformat(),
         }
         try:
             with open(config.STATE_FILE, "w") as f:
