@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trading Bot — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #0f1117;
+      --card:     #1a1d27;
+      --border:   #2a2d3e;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --blue:     #3b82f6;
+      --yellow:   #eab308;
+      --purple:   #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+    header h1 span { color: var(--blue); }
+    #mode-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .mode-paper { background: #1e3a5f; color: var(--blue); }
+    .mode-live  { background: #3d1515; color: var(--red); }
+    #last-update { color: var(--muted); font-size: 12px; }
+
+    /* ── Grid ── */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 20px 24px 0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+      padding: 16px 24px 0;
+    }
+    .full { padding: 16px 24px 0; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-title {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .card-sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral  { color: var(--text); }
+
+    /* ── Chart containers ── */
+    .chart-wrap {
+      position: relative;
+      height: 260px;
+    }
+
+    /* ── Bot status bar ── */
+    #status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 14px 20px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .stat-value { font-size: 14px; font-weight: 600; }
+
+    /* ── Trades table ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 10px 12px; font-size: 13px; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .tag-long  { background: #14401f; color: var(--green); }
+    .tag-short { background: #3d1515; color: var(--red); }
+    .tag-tp    { background: #14401f; color: var(--green); }
+    .tag-sl    { background: #3d1515; color: var(--red); }
+    .tag-other { background: #1e2a40; color: var(--blue); }
+
+    /* ── Progress bar ── */
+    .progress-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 8px; }
+    .progress-bar  { height: 6px; border-radius: 4px; background: var(--blue); transition: width .5s; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    /* ── Dot status ── */
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .dot-on  { background: var(--green); animation: pulse 2s infinite; }
+    .dot-off { background: var(--red); }
+    @keyframes pulse {
+      0%,100% { opacity:1; } 50% { opacity:.4; }
+    }
+
+    @media (max-width: 600px) {
+      header { flex-direction: column; gap: 8px; text-align: center; }
+      .card-value { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ────────────────────────────────── -->
+<header>
+  <h1>Trading Bot <span>Dashboard</span></h1>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="mode-badge" class="mode-paper">PAPER</span>
+    <span id="last-update">Chargement...</span>
+  </div>
+</header>
+
+<!-- ── MÉTRIQUES PRINCIPALES ─────────────────── -->
+<div class="grid-4">
+  <div class="card">
+    <div class="card-title">Capital actuel</div>
+    <div class="card-value" id="capital">—</div>
+    <div class="card-sub" id="pnl-total">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Win Rate</div>
+    <div class="card-value" id="win-rate">—</div>
+    <div class="card-sub" id="trades-count">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">PnL total</div>
+    <div class="card-value" id="total-pnl">—</div>
+    <div class="card-sub" id="avg-pnl">—</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Max Drawdown</div>
+    <div class="card-value" id="max-dd">—</div>
+    <div class="card-sub" id="best-worst">—</div>
+  </div>
+</div>
+
+<!-- ── STATUT BOT ─────────────────────────────── -->
+<div class="full" style="padding-top:16px">
+  <div class="card">
+    <div class="card-title">Statut du bot</div>
+    <div id="status-bar">
+      <div class="stat">
+        <span class="stat-label">Activité</span>
+        <span class="stat-value" id="bot-alive"><span class="dot dot-on"></span>En cours</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Mode</span>
+        <span class="stat-value" id="bot-mode">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Marchés</span>
+        <span class="stat-value" id="bot-markets">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">RL Steps</span>
+        <span class="stat-value" id="rl-steps">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">RL Epsilon</span>
+        <span class="stat-value" id="rl-epsilon">—</span>
+      </div>
+      <div class="stat" style="flex:1;min-width:160px">
+        <span class="stat-label">Exploration RL</span>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="epsilon-bar" style="width:100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── GRAPHIQUES ────────────────────────────── -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Courbe de capital</div>
+    <div class="chart-wrap"><canvas id="capitalChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Win Rate glissant (20 trades)</div>
+    <div class="chart-wrap"><canvas id="winrateChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ── DERNIERS TRADES ───────────────────────── -->
+<div class="full" style="padding-bottom:0">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">20 derniers trades</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Symbole</th>
+            <th>Direction</th>
+            <th>Entrée</th>
+            <th>Sortie</th>
+            <th>PnL ($)</th>
+            <th>PnL (%)</th>
+            <th>Raison</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="trades-tbody">
+          <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">
+            Aucun trade pour le moment...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Actualisation automatique toutes les 15 secondes &nbsp;·&nbsp;
+  Bot de trading autonome ML+RL
+</footer>
+
+<!-- ── JAVASCRIPT ────────────────────────────── -->
+<script>
+  let capitalChart, winrateChart;
+
+  const fmt$ = v => (v >= 0 ? '+' : '') + v.toFixed(2) + ' $';
+  const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(2) + ' %';
+  const colorClass = v => v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral';
+
+  function initCharts() {
+    const chartDefaults = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1a1d27', borderColor: '#2a2d3e', borderWidth: 1 }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          grid: { color: '#2a2d3e' },
+          ticks: { color: '#64748b', font: { size: 11 } }
+        }
+      }
+    };
+
+    capitalChart = new Chart(document.getElementById('capitalChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{
+        data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)',
+        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+      }]},
+      options: { ...chartDefaults,
+        plugins: { ...chartDefaults.plugins,
+          tooltip: { ...chartDefaults.plugins.tooltip,
+            callbacks: {
+              label: ctx => ' Capital : ' + ctx.parsed.y.toFixed(2) + ' $',
+              title: ctx => ctx[0].raw.label || ''
+            }
+          }
+        }
+      }
+    });
+
+    winrateChart = new Chart(document.getElementById('winrateChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [{
+        data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.08)',
+        fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+      }, {
+        // Ligne de référence 68 %
+        data: [], borderColor: '#eab308', borderDash: [6, 4],
+        borderWidth: 1, pointRadius: 0, fill: false
+      }]},
+      options: { ...chartDefaults,
+        scales: { ...chartDefaults.scales,
+          y: { ...chartDefaults.scales.y, min: 0, max: 100,
+            ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + ' %' }
+          }
+        }
+      }
+    });
+  }
+
+  function updateCharts(data) {
+    // Capital
+    const cc = data.capital_curve;
+    capitalChart.data.labels   = cc.map(p => p.label);
+    capitalChart.data.datasets[0].data = cc.map(p => ({ x: p.x, y: p.y, label: p.label }));
+    capitalChart.data.datasets[0].borderColor =
+      cc.length > 1 && cc[cc.length-1].y >= cc[0].y ? '#3b82f6' : '#ef4444';
+    capitalChart.update('none');
+
+    // Win rate
+    const wc = data.winrate_curve;
+    winrateChart.data.labels = wc.map(p => p.x);
+    winrateChart.data.datasets[0].data = wc.map(p => p.y);
+    winrateChart.data.datasets[1].data = wc.map(() => 68);  // ligne cible 68 %
+    winrateChart.update('none');
+  }
+
+  function updateMetrics(data) {
+    const m  = data.metrics;
+    const bs = data.bot_status;
+
+    // Capital
+    const pnlPct = bs.pnl_total_pct;
+    document.getElementById('capital').textContent = bs.capital.toFixed(2) + ' $';
+    document.getElementById('capital').className   = 'card-value ' + colorClass(bs.pnl_total);
+    document.getElementById('pnl-total').innerHTML =
+      `<span class="${colorClass(bs.pnl_total)}">${fmt$(bs.pnl_total)} (${fmtPct(pnlPct)})</span> depuis le début`;
+
+    // Win rate
+    const wr = m.win_rate || 0;
+    document.getElementById('win-rate').textContent = wr + ' %';
+    document.getElementById('win-rate').className   = 'card-value ' + (wr >= 60 ? 'positive' : wr >= 45 ? 'neutral' : 'negative');
+    document.getElementById('trades-count').textContent =
+      `${m.wins} gagnants · ${m.losses} perdants · ${m.total_trades} total`;
+
+    // PnL total
+    document.getElementById('total-pnl').textContent = fmt$(m.total_pnl);
+    document.getElementById('total-pnl').className   = 'card-value ' + colorClass(m.total_pnl);
+    document.getElementById('avg-pnl').innerHTML =
+      `Moy. ${fmt$(m.avg_pnl)} par trade`;
+
+    // Drawdown
+    document.getElementById('max-dd').textContent = m.max_drawdown + ' %';
+    document.getElementById('max-dd').className   = 'card-value ' + (m.max_drawdown < 5 ? 'positive' : m.max_drawdown < 10 ? 'neutral' : 'negative');
+    document.getElementById('best-worst').innerHTML =
+      `Meilleur <span class="positive">${fmt$(m.best_trade)}</span> · Pire <span class="negative">${fmt$(m.worst_trade)}</span>`;
+
+    // Statut bot
+    const mode = bs.mode;
+    document.getElementById('bot-mode').textContent     = mode;
+    document.getElementById('bot-markets').textContent  = (bs.markets || []).join(', ');
+    document.getElementById('rl-steps').textContent     = bs.rl_steps.toLocaleString();
+    document.getElementById('rl-epsilon').textContent   = bs.rl_epsilon;
+    document.getElementById('epsilon-bar').style.width  = (bs.rl_epsilon * 100) + '%';
+
+    // Badge mode
+    const badge = document.getElementById('mode-badge');
+    badge.textContent = mode;
+    badge.className   = mode === 'LIVE' ? 'mode-live' : 'mode-paper';
+
+    // Dernière mise à jour
+    const lu = bs.last_update;
+    document.getElementById('last-update').textContent =
+      lu && lu !== 'Inconnu' ? 'MàJ : ' + lu.replace('T', ' ').slice(0, 19) : 'En attente...';
+
+    // Dot activité (si dernière mise à jour < 10 min)
+    let active = false;
+    if (lu && lu !== 'Inconnu') {
+      const diff = (Date.now() - new Date(lu).getTime()) / 1000;
+      active = diff < 600;
+    }
+    document.getElementById('bot-alive').innerHTML =
+      `<span class="dot ${active ? 'dot-on' : 'dot-off'}"></span>${active ? 'En cours' : 'Inactif'}`;
+  }
+
+  function updateTrades(trades) {
+    const tbody = document.getElementById('trades-tbody');
+    if (!trades || trades.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Aucun trade pour le moment...</td></tr>';
+      return;
+    }
+    tbody.innerHTML = trades.map(t => {
+      const pnl    = parseFloat(t.pnl || 0);
+      const pnlPct = parseFloat(t.pnl_pct || 0) * 100;
+      const dir    = (t.direction || '').toUpperCase();
+      const reason = (t.exit_reason || '').toUpperCase();
+      const date   = (t.exit_time || '').replace('T', ' ').slice(0, 16);
+      return `<tr>
+        <td style="color:var(--muted)">${t.id || ''}</td>
+        <td><strong>${t.symbol || ''}</strong></td>
+        <td><span class="tag ${dir === 'LONG' ? 'tag-long' : 'tag-short'}">${dir}</span></td>
+        <td>${parseFloat(t.entry_price || 0).toFixed(4)}</td>
+        <td>${parseFloat(t.exit_price || 0).toFixed(4)}</td>
+        <td class="${colorClass(pnl)}">${fmt$(pnl)}</td>
+        <td class="${colorClass(pnlPct)}">${fmtPct(pnlPct)}</td>
+        <td><span class="tag ${reason === 'TP' ? 'tag-tp' : reason === 'SL' ? 'tag-sl' : 'tag-other'}">${reason}</span></td>
+        <td style="color:var(--muted)">${date}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function refresh() {
+    try {
+      const res  = await fetch('/api/data');
+      const data = await res.json();
+      updateMetrics(data);
+      updateCharts(data);
+      updateTrades(data.recent_trades);
+    } catch (e) {
+      document.getElementById('last-update').textContent = 'Erreur de connexion...';
+    }
+  }
+
+  // Init
+  initCharts();
+  refresh();
+  setInterval(refresh, 15000);   // Actualisation toutes les 15 s
+</script>
+</body>
+</html>
