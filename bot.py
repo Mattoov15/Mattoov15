@@ -62,10 +62,13 @@ class TradingBot:
         self.trade_logger = TradeLogger()
         self.data_manager = DataManager()
         self.strategy     = TradingStrategy()
-        self.risk_manager = RiskManager()
         self.ml_model     = SupervisedModel()
         self.rl_agent     = DQNAgent()
         self.trader       = create_trader(self.trade_logger)
+
+        # Récupération du solde réel depuis Alpaca si les clés sont configurées
+        initial_capital = self._fetch_alpaca_balance()
+        self.risk_manager = RiskManager(initial_capital=initial_capital)
 
         # Compteur de trades depuis le dernier ré-entraînement ML
         self._trades_since_ml_retrain = 0
@@ -289,6 +292,29 @@ class TradingBot:
     # Helpers
     # ──────────────────────────────────────────
 
+    def _fetch_alpaca_balance(self) -> float:
+        """
+        Récupère le solde réel du compte Alpaca (paper ou live).
+        Retourne INITIAL_CAPITAL si les clés ne sont pas configurées.
+        """
+        if not config.ALPACA_API_KEY or not config.ALPACA_SECRET_KEY:
+            logger.info(f"Clés Alpaca non configurées — capital par défaut : {config.INITIAL_CAPITAL} $")
+            return config.INITIAL_CAPITAL
+        try:
+            import alpaca_trade_api as tradeapi
+            api = tradeapi.REST(
+                config.ALPACA_API_KEY,
+                config.ALPACA_SECRET_KEY,
+                config.ALPACA_BASE_URL,
+                api_version="v2",
+            )
+            equity = float(api.get_account().equity)
+            logger.info(f"Solde Alpaca récupéré : {equity:.2f} $")
+            return equity
+        except Exception as e:
+            logger.warning(f"Impossible de récupérer le solde Alpaca ({e}) — capital par défaut : {config.INITIAL_CAPITAL} $")
+            return config.INITIAL_CAPITAL
+
     def _build_rl_state(self, df, in_position: int, signal_result) -> "np.ndarray":
         import numpy as np
         closes = df["Close"].values
@@ -325,6 +351,7 @@ class TradingBot:
         state = {
             "capital":                     self.risk_manager.capital,
             "peak_capital":                self.risk_manager.peak_capital,
+            "initial_capital":             self.risk_manager.peak_capital,
             "trades_since_ml_retrain":     self._trades_since_ml_retrain,
             "rl_steps":                    self.rl_agent.steps,
             "rl_epsilon":                  self.rl_agent.epsilon,

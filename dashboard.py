@@ -94,7 +94,8 @@ def _compute_metrics(trades: List[Dict]) -> Dict:
 
 def _capital_curve(trades: List[Dict]) -> List[Dict]:
     """Courbe de capital au fil des trades."""
-    capital = config.INITIAL_CAPITAL
+    state   = _load_state()
+    capital = state.get("initial_capital", config.INITIAL_CAPITAL)
     curve = [{"x": 0, "y": round(capital, 2), "label": "Départ"}]
     for i, t in enumerate(trades, 1):
         try:
@@ -140,14 +141,15 @@ def api_data():
     recent  = trades[-20:][::-1]   # 20 derniers trades, plus récent en premier
 
     # Statut du bot
-    last_save = state.get("last_save", "Inconnu")
-    capital   = state.get("capital", config.INITIAL_CAPITAL)
-    rl_steps  = state.get("rl_steps", 0)
-    epsilon   = state.get("rl_epsilon", 1.0)
+    last_save       = state.get("last_save", "Inconnu")
+    capital         = state.get("capital", config.INITIAL_CAPITAL)
+    initial_capital = state.get("initial_capital", config.INITIAL_CAPITAL)
+    rl_steps        = state.get("rl_steps", 0)
+    epsilon         = state.get("rl_epsilon", 1.0)
 
     # Calcul profit/perte depuis le début
-    pnl_total    = capital - config.INITIAL_CAPITAL
-    pnl_total_pct = round(pnl_total / config.INITIAL_CAPITAL * 100, 2)
+    pnl_total     = capital - initial_capital
+    pnl_total_pct = round(pnl_total / initial_capital * 100, 2) if initial_capital else 0
 
     return jsonify({
         "metrics":      metrics,

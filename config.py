@@ -62,7 +62,7 @@ VOLUME_RATIO_MIN  = 1.1           # Volume doit être > 110 % de sa moyenne
 # ─────────────────────────────────────────────
 # RISK MANAGEMENT
 # ─────────────────────────────────────────────
-INITIAL_CAPITAL        = 10_000.0    # Capital initial en $
+INITIAL_CAPITAL        = 100_000.0   # Capital initial en $ (défaut Alpaca paper)
 MAX_POSITION_PCT       = 0.10        # Max 10 % du capital par trade
 DAILY_LOSS_LIMIT_PCT   = 0.03        # Arrêt si perte journalière > 3 %
 MAX_DRAWDOWN_PCT       = 0.10        # Arrêt si drawdown depuis pic > 10 %
