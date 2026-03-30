@@ -170,13 +170,12 @@ class TradingBot:
                 "low":  float(last_row["Low"]),
             }
 
-            # 2. Vérification des SL/TP pour les positions ouvertes (paper)
-            if isinstance(self.trader, PaperTrader):
-                closed_trades = self.trader.check_and_close_positions(
-                    current_prices, candle_data
-                )
-                for trade in closed_trades:
-                    self._on_trade_closed(trade)
+            # 2. Vérification des SL/TP pour les positions ouvertes (paper et live)
+            closed_trades = self.trader.check_and_close_positions(
+                current_prices, candle_data
+            )
+            for trade in closed_trades:
+                self._on_trade_closed(trade)
 
             # 3. Génération du signal technique
             signal_result = self.strategy.generate_signal(df)
@@ -265,10 +264,9 @@ class TradingBot:
             if loss is not None:
                 logger.debug(f"RL loss = {loss:.6f}")
 
-        # 9. Mise à jour du risk manager (PnL non réalisé)
-        if isinstance(self.trader, PaperTrader):
-            unrealized = self.trader.get_unrealized_pnl(current_prices)
-            self.risk_manager.record_unrealized_pnl(unrealized)
+        # 9. Mise à jour du risk manager (PnL non réalisé — paper et live)
+        unrealized = self.trader.get_unrealized_pnl(current_prices)
+        self.risk_manager.record_unrealized_pnl(unrealized)
 
         self._save_state()
 
@@ -346,7 +344,7 @@ class TradingBot:
         closes = df["Close"].values
         ret_1h = float((closes[-1] - closes[-2]) / closes[-2]) if len(closes) >= 2 else 0.0
         ret_4h = float((closes[-1] - closes[-5]) / closes[-5]) if len(closes) >= 5 else 0.0
-        capital_ratio = self.risk_manager.capital / config.INITIAL_CAPITAL
+        capital_ratio = self.risk_manager.capital / self.risk_manager._initial_capital
 
         return self.rl_agent.encode_state(
             rsi=signal_result.rsi,
@@ -409,15 +407,19 @@ class TradingBot:
         self.rl_agent.save()
         self._save_state()
 
-        # Fermeture de toutes les positions paper ouvertes
-        if isinstance(self.trader, PaperTrader):
-            for symbol in list(self.trader.positions.keys()):
-                # Récupérer le dernier prix connu
-                alpaca_to_yf = {v["alpaca"]: v["yfinance"] for v in config.SYMBOLS.values()}
-                yf_sym = alpaca_to_yf.get(symbol, symbol)
-                price = self.data_manager.get_latest_price(yf_sym) or 0.0
-                self.trader.force_close(symbol, price, reason="shutdown")
-                logger.info(f"[{symbol}] Position fermée au shutdown.")
+        # Fermeture de toutes les positions ouvertes (paper et live)
+        alpaca_to_yf = {v["alpaca"]: v["yfinance"] for v in config.SYMBOLS.values()}
+        open_positions = self.trader.get_open_positions()
+        symbols = (
+            list(self.trader.positions.keys())
+            if isinstance(self.trader, PaperTrader)
+            else [p["symbol"] for p in open_positions]
+        )
+        for symbol in symbols:
+            yf_sym = alpaca_to_yf.get(symbol, symbol)
+            price = self.data_manager.get_latest_price(yf_sym) or 0.0
+            self.trader.force_close(symbol, price, reason="shutdown")
+            logger.info(f"[{symbol}] Position fermée au shutdown.")
 
         logger.info("Bot arrêté. À bientôt !")
         sys.exit(0)

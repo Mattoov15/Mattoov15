@@ -5,7 +5,7 @@ Retry automatique avec backoff exponentiel.
 
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 import pandas as pd
@@ -58,7 +58,7 @@ class DataManager:
         df = self._fetch_with_retry(symbol, timeframe, days)
         if df is not None and not df.empty:
             self._cache[cache_key] = df
-            self._last_fetch[cache_key] = datetime.utcnow()
+            self._last_fetch[cache_key] = datetime.now(timezone.utc)
         return df
 
     def get_latest_price(self, symbol: str) -> Optional[float]:
@@ -83,7 +83,7 @@ class DataManager:
         self, symbol: str, timeframe: str, days: int, max_retries: int = 4
     ) -> Optional[pd.DataFrame]:
         interval = YFINANCE_INTERVALS.get(timeframe, "60m")
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=days)
 
         wait = 2
@@ -134,5 +134,5 @@ class DataManager:
     def _is_cache_valid(self, key: str, ttl: int) -> bool:
         if key not in self._cache or key not in self._last_fetch:
             return False
-        age = (datetime.utcnow() - self._last_fetch[key]).total_seconds()
+        age = (datetime.now(timezone.utc) - self._last_fetch[key]).total_seconds()
         return age < ttl

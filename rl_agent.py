@@ -238,7 +238,7 @@ class DQNAgent:
     def _load_if_exists(self):
         if os.path.exists(RL_MODEL_PATH):
             try:
-                checkpoint = torch.load(RL_MODEL_PATH, map_location=self.device)
+                checkpoint = torch.load(RL_MODEL_PATH, map_location=self.device, weights_only=False)
                 self.policy_net.load_state_dict(checkpoint["policy_net"])
                 self.target_net.load_state_dict(checkpoint["target_net"])
                 self.optimizer.load_state_dict(checkpoint["optimizer"])

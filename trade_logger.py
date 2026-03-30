@@ -10,6 +10,8 @@ import logging.handlers
 from datetime import datetime
 from typing import Dict, List, Optional
 
+import numpy as np
+
 import config
 
 
@@ -148,7 +150,6 @@ class TradeLogger:
                 max_dd = dd
 
         # Sharpe ratio (simplifié, supposant rf=0)
-        import numpy as np
         arr = np.array(pnls, dtype=float)
         sharpe = float(arr.mean() / arr.std()) if arr.std() > 0 else 0.0
 

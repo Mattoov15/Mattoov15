@@ -6,7 +6,7 @@ Gère les positions ouvertes, le suivi PnL et la fermeture des ordres.
 import time
 import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import config
@@ -37,7 +37,7 @@ class Position:
         self.quantity    = quantity
         self.sl_price    = sl_price
         self.tp_price    = tp_price
-        self.entry_time  = datetime.utcnow().isoformat()
+        self.entry_time  = datetime.now(timezone.utc).isoformat()
         self.signal_data = signal_data   # RSI, MACD, etc. au moment de l'entrée
 
     def unrealized_pnl(self, current_price: float) -> float:
@@ -210,7 +210,7 @@ class PaperTrader:
             "exit_price":              round(exit_price, 6),
             "quantity":                round(position.quantity, 6),
             "entry_time":              position.entry_time,
-            "exit_time":               datetime.utcnow().isoformat(),
+            "exit_time":               datetime.now(timezone.utc).isoformat(),
             "pnl":                     round(pnl, 4),
             "pnl_pct":                 round(pnl_pct, 6),
             "sl_price":                round(position.sl_price, 6),
@@ -238,8 +238,10 @@ class LiveTrader:
     """
 
     def __init__(self, trade_logger: TradeLogger):
-        self.trade_logger = trade_logger
-        self._api = None
+        self.trade_logger    = trade_logger
+        self._api            = None
+        self._local_positions: Dict[str, Dict] = {}   # symbol → position data
+        self._trade_counter  = trade_logger.total_trade_count()
         self._connect()
 
     def _connect(self, max_retries: int = 4):
@@ -287,6 +289,10 @@ class LiveTrader:
         if not self.is_connected() or quantity <= 0:
             return None
 
+        if symbol in self._local_positions:
+            logger.info(f"[{symbol}] Position déjà ouverte (live) — skip.")
+            return None
+
         side = "buy" if signal.signal == Signal.LONG else "sell"
         wait = 2
         for attempt in range(1, 5):
@@ -298,11 +304,31 @@ class LiveTrader:
                     type="market",
                     time_in_force="day",
                 )
+                self._trade_counter += 1
+                trade_id = order.id
+                self._local_positions[symbol] = {
+                    "trade_id":    trade_id,
+                    "symbol":      symbol,
+                    "direction":   signal.signal.value,
+                    "entry_price": signal.entry_price,
+                    "quantity":    round(quantity, 2),
+                    "sl_price":    signal.sl_price,
+                    "tp_price":    signal.tp_price,
+                    "entry_time":  datetime.now(timezone.utc).isoformat(),
+                    "signal_data": {
+                        "rsi_at_entry":          signal.rsi,
+                        "macd_at_entry":         signal.macd,
+                        "bb_pct_at_entry":       signal.bb_pct,
+                        "adx_at_entry":          signal.adx,
+                        "volume_ratio_at_entry": signal.volume_ratio,
+                    },
+                }
                 logger.info(
                     f"[{symbol}] Ordre {side.upper()} soumis | "
-                    f"Qty={quantity:.2f} | OrderID={order.id}"
+                    f"Qty={quantity:.2f} | SL={signal.sl_price:.4f} | "
+                    f"TP={signal.tp_price:.4f} | OrderID={trade_id}"
                 )
-                return order.id
+                return trade_id
             except Exception as e:
                 logger.warning(f"[{symbol}] Erreur ordre tentative {attempt} : {e}")
                 if attempt < 4:
@@ -326,15 +352,118 @@ class LiveTrader:
                     wait *= 2
         return False
 
+    def check_and_close_positions(
+        self,
+        current_prices: Dict[str, float],
+        candle_data: Dict[str, Dict],
+    ) -> List[Dict]:
+        """
+        Vérifie les SL/TP pour chaque position live suivie localement.
+        Soumet un ordre de fermeture à Alpaca si le seuil est atteint.
+        Retourne la liste des trades fermés (compatible avec _on_trade_closed).
+        """
+        closed = []
+        for symbol, pos in list(self._local_positions.items()):
+            price = current_prices.get(symbol)
+            if price is None:
+                continue
+
+            candle      = candle_data.get(symbol, {})
+            high        = float(candle.get("high", price))
+            low         = float(candle.get("low", price))
+            direction   = pos["direction"]
+            sl          = pos["sl_price"]
+            tp          = pos["tp_price"]
+
+            exit_reason = None
+            exit_price  = price
+            if direction == "LONG":
+                if low <= sl:
+                    exit_reason, exit_price = "SL", sl
+                elif high >= tp:
+                    exit_reason, exit_price = "TP", tp
+            else:
+                if high >= sl:
+                    exit_reason, exit_price = "SL", sl
+                elif low <= tp:
+                    exit_reason, exit_price = "TP", tp
+
+            if exit_reason:
+                self.close_position(symbol)
+                trade_record = self._build_trade_record(pos, exit_price, exit_reason)
+                self.trade_logger.log_trade(trade_record)
+                del self._local_positions[symbol]
+                pnl = trade_record["pnl"]
+                emoji = "✅" if pnl > 0 else "❌"
+                logger.info(
+                    f"{emoji} [{symbol}] CLOSE {direction} (live) | "
+                    f"Raison={exit_reason} | PnL={pnl:+.2f} $"
+                )
+                closed.append(trade_record)
+        return closed
+
+    def force_close(self, symbol: str, current_price: float, reason: str = "manual") -> Optional[Dict]:
+        """Force la fermeture d'une position live."""
+        pos = self._local_positions.get(symbol)
+        if not pos:
+            return None
+        self.close_position(symbol)
+        trade_record = self._build_trade_record(pos, current_price, reason)
+        self.trade_logger.log_trade(trade_record)
+        del self._local_positions[symbol]
+        return trade_record
+
+    def get_unrealized_pnl(self, current_prices: Dict[str, float]) -> float:
+        """Calcule le PnL non réalisé depuis le suivi local des positions."""
+        total = 0.0
+        for symbol, pos in self._local_positions.items():
+            price = current_prices.get(symbol)
+            if price is None:
+                continue
+            ep  = pos["entry_price"]
+            qty = pos["quantity"]
+            total += (price - ep) * qty if pos["direction"] == "LONG" else (ep - price) * qty
+        return total
+
     def get_open_positions(self) -> List[Dict]:
+        """Retourne les positions suivies localement (compatible avec le bot)."""
+        return [
+            {"symbol": sym, **pos}
+            for sym, pos in self._local_positions.items()
+        ]
+
+    def _build_trade_record(self, pos: Dict, exit_price: float, exit_reason: str) -> Dict:
+        ep  = pos["entry_price"]
+        qty = pos["quantity"]
+        pnl = (exit_price - ep) * qty if pos["direction"] == "LONG" else (ep - exit_price) * qty
+        pnl_pct = pnl / (ep * qty) if ep else 0.0
+        return {
+            "id":                      pos["trade_id"],
+            "symbol":                  pos["symbol"],
+            "direction":               pos["direction"],
+            "entry_price":             round(ep, 6),
+            "exit_price":              round(exit_price, 6),
+            "quantity":                round(qty, 6),
+            "entry_time":              pos["entry_time"],
+            "exit_time":               datetime.now(timezone.utc).isoformat(),
+            "pnl":                     round(pnl, 4),
+            "pnl_pct":                 round(pnl_pct, 6),
+            "sl_price":                round(pos["sl_price"], 6),
+            "tp_price":                round(pos["tp_price"], 6),
+            "exit_reason":             exit_reason,
+            **pos["signal_data"],
+        }
+
+    def get_alpaca_positions(self) -> List[Dict]:
+        """Positions Alpaca brutes (pour monitoring externe)."""
         if not self.is_connected():
             return []
         try:
             positions = self._api.list_positions()
             return [
                 {
-                    "symbol":       p.symbol,
-                    "qty":          float(p.qty),
+                    "symbol":        p.symbol,
+                    "qty":           float(p.qty),
                     "unrealized_pl": float(p.unrealized_pl),
                     "current_price": float(p.current_price),
                 }

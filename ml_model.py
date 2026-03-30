@@ -160,6 +160,15 @@ class SupervisedModel:
 
         X = np.array(rows, dtype=float)
         y = np.array(labels, dtype=int)
+
+        # Le modèle a besoin des 2 classes (0 et 1) pour predict_proba
+        if len(np.unique(y)) < 2:
+            logger.warning(
+                "Dataset mono-classe (que des gagnants ou que des perdants) "
+                "— entraînement ignoré, attente de plus de diversité."
+            )
+            return None, None
+
         return X, y
 
     def _dict_to_array(self, features: Dict) -> np.ndarray:
