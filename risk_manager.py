@@ -24,8 +24,9 @@ class RiskManager:
     """
 
     def __init__(self, initial_capital: float = config.INITIAL_CAPITAL):
-        self.capital       = initial_capital
-        self.peak_capital  = initial_capital
+        self._initial_capital = initial_capital   # immuable, pour le dashboard
+        self.capital          = initial_capital
+        self.peak_capital     = initial_capital
         self.daily_loss    = 0.0
         self.weekly_loss   = 0.0
         self._last_day     = date.today()

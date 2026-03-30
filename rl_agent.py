@@ -158,6 +158,10 @@ class DQNAgent:
 
         return float(loss.item())
 
+    def is_trained_enough(self) -> bool:
+        """Retourne True si l'agent a suffisamment appris pour filtrer les signaux."""
+        return self.steps >= 200
+
     def get_q_values(self, state: np.ndarray) -> np.ndarray:
         """Retourne les Q-values pour un état donné (debugging/monitoring)."""
         with torch.no_grad():

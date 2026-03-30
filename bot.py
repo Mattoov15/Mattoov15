@@ -77,9 +77,16 @@ class TradingBot:
         # Chargement de l'état persistant
         self._load_state()
 
-        # Gestion du shutdown propre (SIGINT, SIGTERM)
-        signal.signal(signal.SIGINT,  self._shutdown_handler)
-        signal.signal(signal.SIGTERM, self._shutdown_handler)
+        # Vérification aptitude live (bloque si < 50 trades paper)
+        if self.mode == "live":
+            if not self.risk_manager.check_live_readiness(self.trade_logger.total_trade_count()):
+                logger.error("Bot non prêt pour le live — passez d'abord par alpaca-paper.")
+                sys.exit(1)
+
+        # Gestion du shutdown propre (SIGINT/SIGTERM — compatibilité Windows)
+        signal.signal(signal.SIGINT, self._shutdown_handler)
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, self._shutdown_handler)
 
     # ──────────────────────────────────────────
     # Modes d'exécution
@@ -194,9 +201,19 @@ class TradingBot:
                 continue
 
             # 5. Décision via RL (DQN)
-            in_position = 1 if alpaca_sym in getattr(self.trader, "positions", {}) else 0
+            open_pos = self.trader.get_open_positions()
+            in_position = 1 if any(
+                p.get("symbol", p.get("trade_id", "")) == alpaca_sym
+                or p.get("symbol", "") == alpaca_sym
+                for p in (open_pos.values() if isinstance(open_pos, dict) else open_pos)
+            ) else 0
             rl_state = self._build_rl_state(df, in_position, signal_result)
             rl_action = self.rl_agent.select_action(rl_state)
+
+            # Validation de l'action RL
+            if rl_action not in (0, 1, 2):
+                logger.warning(f"[{market_name}] Action RL invalide ({rl_action}) — skip.")
+                continue
 
             # RL doit confirmer l'action technique (1=Long, 2=Short)
             expected_action = 1 if signal_result.signal == Signal.LONG else 2
@@ -227,6 +244,13 @@ class TradingBot:
             # 7. Exécution du trade
             trade_id = self.trader.open_position(alpaca_sym, signal_result, quantity)
             if trade_id:
+                # Suivi des positions ouvertes pour les limites du risk manager
+                cost = signal_result.entry_price * quantity
+                self.risk_manager.increment_positions(cost)
+                # Stocker ml_score et rl_action pour les logs du trade
+                if isinstance(self.trader, PaperTrader) and alpaca_sym in self.trader.positions:
+                    self.trader.positions[alpaca_sym].signal_data["ml_score"]  = round(ml_score, 4)
+                    self.trader.positions[alpaca_sym].signal_data["rl_action"] = rl_action
                 logger.info(
                     f"[{market_name}] Trade ouvert #{trade_id} | "
                     f"ML={ml_score:.3f} | RL={rl_action} | Raisons : {signal_result.reasons}"
@@ -255,8 +279,10 @@ class TradingBot:
         pnl         = float(trade.get("pnl", 0))
         exit_reason = trade.get("exit_reason", "unknown")
 
-        # Mise à jour du capital
-        self.risk_manager.update_capital(pnl)
+        # Mise à jour du capital + décrémentation des positions suivies
+        position_cost = float(trade.get("entry_price", 0)) * float(trade.get("quantity", 0))
+        self.risk_manager.update_capital(pnl, position_cost)
+        self.risk_manager.decrement_positions(position_cost)
 
         # Apprentissage RL depuis l'erreur
         dd = self.risk_manager.status()["drawdown"]
@@ -339,10 +365,6 @@ class TradingBot:
         import numpy as np
         return np.zeros(10, dtype=np.float32)
 
-    def is_trained_enough(self) -> bool:
-        """Délégué à l'agent RL pour vérifier si assez entraîné."""
-        return self.rl_agent.steps > 200
-
     # ──────────────────────────────────────────
     # Persistance d'état
     # ──────────────────────────────────────────
@@ -351,7 +373,7 @@ class TradingBot:
         state = {
             "capital":                     self.risk_manager.capital,
             "peak_capital":                self.risk_manager.peak_capital,
-            "initial_capital":             self.risk_manager.peak_capital,
+            "initial_capital":             self.risk_manager._initial_capital,
             "trades_since_ml_retrain":     self._trades_since_ml_retrain,
             "rl_steps":                    self.rl_agent.steps,
             "rl_epsilon":                  self.rl_agent.epsilon,
