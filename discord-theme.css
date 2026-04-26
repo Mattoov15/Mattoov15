@@ -1,0 +1,281 @@
+/**
+ * ===============================================
+ *   THÈME DISCORD - MON CHIEN (Vencord)
+ *   Auteur : Mattoov15
+ * ===============================================
+ *
+ * INSTALLATION :
+ *   1. Ouvre Vencord → Settings → Themes → Online Themes
+ *      ou colles ce CSS dans "Custom CSS"
+ *
+ * IMAGE DE FOND :
+ *   Remplace l'URL ci-dessous par :
+ *   - Un lien imgur/hébergement en ligne : https://i.imgur.com/XXXXX.jpg
+ *   - Ou un chemin local sur ton PC    : file:///C:/Users/TonNom/Images/chien.jpg
+ */
+
+/* ── Variables ─────────────────────────────── */
+:root {
+  --background-image: url("YOUR_IMAGE_URL_HERE");
+
+  /* Palette chaude inspirée du pelage doré */
+  --accent-gold:      #d4a84b;
+  --accent-warm:      #c8956c;
+  --accent-light:     #f0dfc0;
+
+  /* Transparences des panneaux */
+  --panel-alpha:      0.82;
+  --sidebar-alpha:    0.78;
+  --chat-alpha:       0.72;
+
+  /* Rayon des bordures */
+  --radius-panels:    12px;
+  --radius-messages:  8px;
+}
+
+/* ── Fond global ───────────────────────────── */
+body,
+.theme-dark,
+.theme-light {
+  --background-primary:        rgba(26, 22, 18, var(--panel-alpha));
+  --background-secondary:      rgba(20, 17, 13, var(--sidebar-alpha));
+  --background-secondary-alt:  rgba(15, 12, 9,  0.85);
+  --background-tertiary:       rgba(12, 10, 7,  0.90);
+  --background-accent:         rgba(212, 168, 75, 0.25);
+  --background-floating:       rgba(30, 25, 18, 0.95);
+  --background-mobile-primary: rgba(26, 22, 18, var(--panel-alpha));
+  --background-modifier-hover: rgba(212, 168, 75, 0.10);
+  --background-modifier-active: rgba(212, 168, 75, 0.20);
+  --background-modifier-selected: rgba(212, 168, 75, 0.18);
+
+  --text-normal:    #f0dfc0;
+  --text-muted:     #a89070;
+  --text-link:      #d4a84b;
+  --text-positive:  #7ec87e;
+  --text-warning:   #e3b05a;
+  --text-danger:    #e05a5a;
+
+  --interactive-normal:  #c8b08a;
+  --interactive-hover:   #f0dfc0;
+  --interactive-active:  #d4a84b;
+  --interactive-muted:   #7a6a55;
+
+  --header-primary:   #f5e8cc;
+  --header-secondary: #c8b08a;
+
+  --channeltextarea-background: rgba(20, 16, 10, 0.70);
+  --deprecated-card-bg:         rgba(26, 22, 18, 0.80);
+
+  --scrollbar-thin-thumb:  rgba(212, 168, 75, 0.40);
+  --scrollbar-thin-track:  transparent;
+  --scrollbar-auto-thumb:  rgba(212, 168, 75, 0.40);
+  --scrollbar-auto-track:  rgba(0, 0, 0, 0.20);
+
+  --brand-experiment:       #d4a84b;
+  --brand-experiment-560:   #c8956c;
+  --brand-500:              #d4a84b;
+}
+
+/* ── Image de fond sur l'élément racine ──── */
+#app-mount,
+.app-3xd6d0,
+[class*="app-"] {
+  background:
+    var(--background-image) center center / cover no-repeat fixed;
+}
+
+/* Overlay sombre pour la lisibilité */
+#app-mount::before,
+.app-3xd6d0::before,
+[class*="app-"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.45);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Sidebar gauche (serveurs) ────────────── */
+[class*="wrapper-"] nav[class*="guilds"],
+[class*="guilds-"],
+[class*="guildsList-"] {
+  background: rgba(15, 12, 8, 0.80) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* ── Barre latérale canaux ────────────────── */
+[class*="sidebar-"],
+[class*="sidebarRegion-"],
+[class*="panels-"] {
+  background: rgba(18, 14, 9, calc(var(--sidebar-alpha) - 0.05)) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* ── Zone de chat principale ──────────────── */
+[class*="chat-"],
+[class*="chatContent-"],
+[class*="messagesWrapper-"],
+[class*="scroller-"] {
+  background: transparent !important;
+}
+
+/* ── Messages ─────────────────────────────── */
+[class*="message-"],
+[class*="messageContent-"] {
+  background: transparent !important;
+}
+
+[class*="message-"]:hover {
+  background: rgba(212, 168, 75, 0.06) !important;
+  border-radius: var(--radius-messages);
+}
+
+/* ── Barre de saisie ──────────────────────── */
+[class*="channelTextArea-"],
+[class*="textArea-"] {
+  background: rgba(20, 16, 10, 0.70) !important;
+  border: 1px solid rgba(212, 168, 75, 0.25) !important;
+  border-radius: var(--radius-panels) !important;
+  backdrop-filter: blur(8px);
+}
+
+[class*="channelTextArea-"]:focus-within,
+[class*="textArea-"]:focus-within {
+  border-color: rgba(212, 168, 75, 0.55) !important;
+}
+
+/* ── Barre du haut (header) ───────────────── */
+[class*="toolbar-"],
+[class*="header-"],
+[class*="titleBar-"] {
+  background: rgba(15, 12, 8, 0.88) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(212, 168, 75, 0.15) !important;
+}
+
+/* ── Panneaux membres / threads ───────────── */
+[class*="membersWrap-"],
+[class*="members-"],
+[class*="container-"] [class*="privateChannels-"] {
+  background: rgba(18, 14, 9, 0.80) !important;
+  backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(212, 168, 75, 0.12) !important;
+}
+
+/* ── Icônes de serveurs ───────────────────── */
+[class*="blobContainer-"],
+[class*="pill-"] {
+  filter: none;
+}
+
+[class*="blobContainer-"] svg,
+[class*="listItemWrapper-"] [class*="icon-"] {
+  transition: transform 0.2s ease;
+}
+
+[class*="guildIcon-"]:hover,
+[class*="blobContainer-"]:hover {
+  border: 2px solid var(--accent-gold) !important;
+  border-radius: 30% !important;
+}
+
+/* ── Serveur actif : pastille dorée ──────── */
+[class*="pill-"] [class*="item-"] {
+  background: var(--accent-gold) !important;
+}
+
+/* ── Mentions & réactions ─────────────────── */
+[class*="mention-"],
+[class*="mentioned-"] {
+  color: var(--accent-gold) !important;
+  background: rgba(212, 168, 75, 0.12) !important;
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+[class*="reactionCount-"] {
+  color: var(--accent-light) !important;
+}
+
+[class*="reaction-"]:hover {
+  background: rgba(212, 168, 75, 0.20) !important;
+}
+
+/* ── Boutons ──────────────────────────────── */
+[class*="button-"][class*="colorBrand-"],
+[class*="lookFilled-"][class*="colorBrand-"] {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-warm)) !important;
+  border: none !important;
+  color: #1a1610 !important;
+  font-weight: 600;
+  border-radius: var(--radius-messages) !important;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+[class*="button-"][class*="colorBrand-"]:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+/* ── Modales / popups ─────────────────────── */
+[class*="modal-"],
+[class*="root-"][class*="layerContainer-"] {
+  backdrop-filter: blur(14px);
+}
+
+[class*="modal-"] [class*="root-"],
+[class*="contentWrapper-"] {
+  background: rgba(22, 18, 12, 0.92) !important;
+  border: 1px solid rgba(212, 168, 75, 0.22) !important;
+  border-radius: var(--radius-panels) !important;
+}
+
+/* ── Tooltips ─────────────────────────────── */
+[class*="tooltip-"] {
+  background: rgba(30, 24, 14, 0.96) !important;
+  border: 1px solid rgba(212, 168, 75, 0.30) !important;
+  color: var(--accent-light) !important;
+  border-radius: 6px !important;
+}
+
+/* ── Statuts en ligne ─────────────────────── */
+[class*="statusOnline-"]  { background: #7ec87e !important; }
+[class*="statusIdle-"]    { background: var(--accent-gold) !important; }
+[class*="statusDnd-"]     { background: #e05a5a !important; }
+[class*="statusOffline-"] { background: #5a5040 !important; }
+
+/* ── Noms de canaux actifs ────────────────── */
+[class*="modeSelected-"] [class*="name-"],
+[class*="selected-"] [class*="channelName-"] {
+  color: var(--accent-gold) !important;
+  font-weight: 600;
+}
+
+/* ── Séparateurs ──────────────────────────── */
+[class*="divider-"],
+[class*="dividerDefault-"] {
+  border-color: rgba(212, 168, 75, 0.15) !important;
+}
+
+/* ── Scrollbar personnalisée ─────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: rgba(212, 168, 75, 0.35);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 168, 75, 0.60);
+}
+
+/* ── Sélection de texte ───────────────────── */
+::selection {
+  background: rgba(212, 168, 75, 0.35);
+  color: #fff;
+}
+
+/* ── Barre de titre Vencord (Settings) ────── */
+[class*="standardSidebarView-"] [class*="sidebar-"] {
+  background: rgba(14, 11, 7, 0.88) !important;
+}
